@@ -40,6 +40,7 @@ func main() {
 	http.ListenAndServe(":3000", nil)
 }
 
+//показывает все имеющиеся книги в таблице books
 func booksIndex(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "GET" {
 		http.Error(w, http.StatusText(405), 405)
@@ -75,6 +76,7 @@ func booksIndex(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+//поиск одной книги по isbn
 func booksShow(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "GET" {
 		http.Error(w, http.StatusText(405), 405)
@@ -102,6 +104,7 @@ func booksShow(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "%s, %s, £%.2f\n", bk.isbn, bk.title, bk.price)
 }
 
+//создает новую книгу
 func booksCreate(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		http.Error(w, http.StatusText(405), 405)
