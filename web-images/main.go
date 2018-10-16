@@ -60,12 +60,12 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	dstImg, err := os.Create("./images/" + handle.Filename)
+	createImg, err := os.Create("./images/" + handle.Filename)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	defer dstImg.Close()
+	defer createImg.Close()
 
 	img, _, err := image.Decode(file)
 	if err != nil {
@@ -73,7 +73,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	jpeg.Encode(dstImg, img, &jpeg.Options{jpeg.DefaultQuality})
+	jpeg.Encode(createImg, img, &jpeg.Options{jpeg.DefaultQuality})
 
 	img = resize.Resize(150, 100, img, resize.Bilinear)
 	imgPreview, err := os.Create("./images/preview/" + handle.Filename)
