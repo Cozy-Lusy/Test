@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"image"
 	"image/jpeg"
@@ -16,9 +17,9 @@ import (
 var db *sql.DB
 
 type Image struct {
-	ID      int64
-	Image   string
-	Preview string
+	ID       int64
+	Original string
+	Preview  string
 }
 
 func init() {
@@ -31,6 +32,18 @@ func init() {
 	if err = db.Ping(); err != nil {
 		log.Fatal(err)
 	}
+}
+
+func main() {
+
+	http.Handle("/images/", http.StripPrefix("/images", http.FileServer(http.Dir("./images"))))
+
+	http.HandleFunc("/", sendClient)
+	http.HandleFunc("/upload", uploadHandler)
+	http.HandleFunc("/delete", deleteImage)
+
+	http.ListenAndServe(":4000", nil)
+
 }
 
 //Загрузка изображения с клиента
@@ -61,7 +74,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 
 	jpeg.Encode(dstImg, img, &jpeg.Options{jpeg.DefaultQuality})
 
-	img = resize.Resize(100, 100, img, resize.Bilinear)
+	img = resize.Resize(150, 100, img, resize.Bilinear)
 	imgPreview, err := os.Create("./images/preview/" + handle.Filename)
 	if err != nil {
 		log.Fatal(err)
@@ -73,10 +86,10 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 
 	saveImg := Image{}
 
-	saveImg.Image = "./img/" + handle.Filename
-	saveImg.Preview = "./img/preview/" + handle.Filename
+	saveImg.Original = "./image/" + handle.Filename
+	saveImg.Preview = "./image/preview/" + handle.Filename
 
-	result, err := db.Exec("insert into images (image, preview) values ($1 , $2)", saveImg.Image, saveImg.Preview)
+	result, err := db.Exec("INSERT INTO images (image, preview) VALUES ($1 , $2)", saveImg.Original, saveImg.Preview)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -89,15 +102,62 @@ func uploadImage(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func main() {
+//Json отправка на клиент содержимого бд
+func sendClient(w http.ResponseWriter, r *http.Request) {
 
-	http.Handle("/img/", http.StripPrefix("/images", http.FileServer(http.Dir("./images"))))
+	if r.Method != http.MethodGet {
+		http.Error(w, http.StatusText(405), 405)
+		return
+	}
 
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "index.html")
-	})
-	http.HandleFunc("/upload", uploadHandler)
+	listImg := []Image{}
 
-	http.ListenAndServe(":4000", nil)
+	rows, err := db.Query("SELECT * FROM images")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 
+	for rows.Next() {
+		img := Image{}
+		err := rows.Scan(&img.ID, &img.Original, &img.Preview)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+
+		listImg = append(listImg, img)
+	}
+
+	js, err := json.Marshal(listImg)
+	if err != nil {
+		http.Error(w, http.StatusText(500), 500)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(js)
+}
+
+//Удаление из бд по Id
+func deleteImage(w http.ResponseWriter, r *http.Request) {
+
+	if r.Method != http.MethodDelete {
+		http.Error(w, http.StatusText(405), 405)
+		return
+	}
+
+	id := r.URL.Query().Get("id")
+
+	if id == "" {
+		http.Error(w, http.StatusText(400), 400)
+		return
+	}
+	_, err := db.Exec("DELETE FROM images WHERE id = $1", id)
+	if err != nil {
+		log.Println(err)
+	}
+
+	http.Redirect(w, r, "/", 301)
+	fmt.Fprintf(w, "Image %s deleted successfully\n", id)
 }
