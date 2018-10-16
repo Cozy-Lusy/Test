@@ -16,6 +16,7 @@ import (
 
 var db *sql.DB
 
+//Image определяет тип данных
 type Image struct {
 	ID       int64
 	Original string
@@ -95,11 +96,6 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	saveImg.ID, _ = result.LastInsertId()
-}
-
-//Добавим картинки в бд
-func uploadImage(w http.ResponseWriter, r *http.Request) {
-
 }
 
 //Json отправка на клиент содержимого бд
